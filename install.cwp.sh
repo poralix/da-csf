@@ -453,9 +453,7 @@ chmod -v 700 /etc/csf/webmin/csf/index.cgi
 chmod -v 644 /etc/cron.d/lfd-cron
 chmod -v 644 /etc/cron.d/csf-cron
 
-cp -avf csget.pl /etc/cron.daily/csget
-chmod 700 /etc/cron.daily/csget
-/etc/cron.daily/csget --nosleep
+rm -fv /etc/cron.daily/csget
 
 chmod -v 700 auto.cwp.pl
 ./auto.cwp.pl $OLDVERSION

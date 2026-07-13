@@ -113,22 +113,6 @@ sub main {
 	elsif (($FORM{template} ne "") and ($FORM{template} =~ /[^\w\.]/)) {
 		print "[$FORM{template}] is not a valid file";
 	}
-	elsif ($FORM{action} eq "manualcheck") {
-		print "<div><p>Checking version...</p>\n\n";
-		my ($upgrade, $actv) = &manualversion($myv);
-		if ($upgrade) {
-			print "<form action='$script' method='post'><button name='action' value='upgrade' type='submit' class='btn btn-default'>Upgrade csf</button> A new version of csf (v$actv) is available. Upgrading will retain your settings. <a href='https://$config{DOWNLOADSERVER}/csf/changelog.txt' target='_blank'>View ChangeLog</a></form>\n";
-		} else {
-			if ($actv ne "") {
-				print "<div class='bs-callout bs-callout-danger'>$actv</div>\n";
-			}
-			else {
-				print "<div class='bs-callout bs-callout-info'>You are running the latest version of csf (v$myv). An Upgrade button will appear here if a new version becomes available</div>\n";
-			}
-		}
-		print "</div>\n";
-		&printreturn;
-	}
 	elsif ($FORM{action} eq "lfdstatus") {
 		print "<div><p>Show lfd status...</p>\n<pre class='comment' style='white-space: pre-wrap;'>\n";
 		ConfigServer::Service::statuslfd();
@@ -1508,26 +1492,6 @@ EOD
 		print "<div><form action='$script' method='post'><input type='hidden' name='action' value='restart'><input type='submit' class='btn btn-default' value='Restart csf'></form></div>\n";
 		&printreturn;
 	}
-	elsif ($FORM{action} eq "upgrade") {
-		if ($config{THIS_UI}) {
-			print "<div>You cannot upgrade through the UI as restarting lfd will interrupt this session. You must login to the root shell to upgrade csf using:\n<p><b>csf -u</b></div>\n";
-		} else {
-			print "<div><p>Upgrading csf...</p>\n";
-			&resize("top");
-			print "<pre class='comment' style='white-space: pre-wrap; height: 500px; overflow: auto; resize:both; clear:both' id='output'>\n";
-			&printcmd("/usr/sbin/csf","-u");
-			print "</pre>\n<p>...<b>Done</b>.</p></div>\n";
-			&resize("bot",1);
-
-			open (my $IN, "<", "/etc/csf/version.txt") or die $!;
-			flock ($IN, LOCK_SH);
-			$myv = <$IN>;
-			close ($IN);
-			chomp $myv;
-		}
-
-		&printreturn;
-	}
 	elsif ($FORM{action} eq "denyf") {
 		print "<div><p>Removing all entries from csf.deny...</p>\n";
 		&resize("top");
@@ -2096,7 +2060,6 @@ EOF
 		print $status;
 
 		print "<div class='normalcontainer'>\n";
-		print "<div class='bs-callout bs-callout-info text-center collapse' id='upgradebs'><h4>A new version of csf is <a href='#upgradetable'>available</a></h4></div>";
 
 		print "<ul class='nav nav-tabs' id='myTabs' style='font-weight:bold'>\n";
 		print "<li class='active'><a data-toggle='tab' href='#' id='tabAll'>All</a></li>\n";
@@ -2132,48 +2095,6 @@ EOF
 		print "</table>\n";
 		print "</form>\n";
 
-		print "<form action='$script' method='post'>\n";
-		print "<table class='table table-bordered table-striped' id='upgradetable'>\n";
-		print "<thead><tr><th colspan='2'>Upgrade</th></tr></thead>";
-		my ($upgrade, $actv) = &csgetversion("csf",$myv);
-		if ($upgrade) {
-			print "<tr><td><button name='action' value='upgrade' type='submit' class='btn btn-default'>Upgrade csf</button></td><td style='width:100%'><b>A new version of csf (v$actv) is available. Upgrading will retain your settings<br><a href='https://$config{DOWNLOADSERVER}/csf/changelog.txt' target='_blank'>View ChangeLog</a></b></td></tr>\n";
-		} else {
-			print "<tr><td><button name='action' value='manualcheck' type='submit' class='btn btn-default'>Manual Check</button></td><td>";
-			if ($actv ne "") {
-				print "(csget cron check) $actv</td></tr>\n";
-			}
-			else {
-				print "You are running the latest version of csf. An Upgrade button will appear here if a new version becomes available. New version checking is performed automatically by a daily cron job (csget)</td></tr>\n";
-			}
-		}
-		if (!$config{INTERWORX} and (-e "/etc/apf" or -e "/usr/local/bfd")) {
-			print "<tr><td><button name='action' value='remapf' type='submit' class='btn btn-default'>Remove APF/BFD</button></td><td style='width:100%'>Remove APF/BFD from the server. You must not run both APF or BFD with csf on the same server</td></tr>\n";
-		}
-		unless (-e "/etc/cxs/cxs.pl") {
-			if (-e "/usr/local/cpanel/version" or $config{DIRECTADMIN} or $config{INTERWORX} or $config{VESTA} or $config{CWP} or $config{CYBERPANEL}) {
-				print "<tr><td colspan='2'>\n";
-				print "<div class='bs-callout bs-callout-info h4'>Add server and user data protection against exploits using <a href='https://configserver.com/cp/cxs.html' target='_blank'>ConfigServer eXploit Scanner (cxs)</a></div>\n";
-				print "</td></tr>\n";
-			}
-		}
-		unless (-e "/etc/osm/osmd.pl") {
-			if (-e "/usr/local/cpanel/version" or $config{DIRECTADMIN}) {
-				print "<tr><td colspan='2'>\n";
-				print "<div class='bs-callout bs-callout-info h4'>Add outgoing spam monitoring and prevention using <a href='https://configserver.com/cp/osm.html' target='_blank'>ConfigServer Outgoing Spam Monitor(osm)</a></div>\n";
-				print "</td></tr>\n";
-			}
-		}
-		unless (-e "/usr/msfe/mschange.pl") {
-			if (-e "/usr/local/cpanel/version" or $config{DIRECTADMIN}) {
-				print "<tr><td colspan='2'>\n";
-				print "<div class='bs-callout bs-callout-info h4'>Add effective incoming virus and spam detection and user level processing using <a href='https://configserver.com/cp/msfe.html' target='_blank'>ConfigServer MailScanner Front-End (msfe)</a></div>\n";
-				print "</td></tr>\n";
-			}
-		}
-		print "</table>\n";
-		print "</form>\n";
-		if ($upgrade) {print "<script>\$('\#upgradebs').show();</script>\n"}
 		print "</div>\n";
 
 		print "<div id='csf' class='tab-pane active'>\n";
@@ -2887,68 +2808,6 @@ sub confirmmodal {
 	return;
 }
 # end confirmmodal
-###############################################################################
-# start csgetversion
-sub csgetversion {
-	my $product = shift;
-	my $current = shift;
-	my $upgrade = 0;
-	my $newversion;
-	if (-e "/var/lib/configserver/".$product.".txt.error") {
-		open (my $VERSION, "<", "/var/lib/configserver/".$product.".txt.error");
-		flock ($VERSION, LOCK_SH);
-		$newversion = <$VERSION>;
-		close ($VERSION);
-		chomp $newversion;
-		if ($newversion eq "") {
-			$newversion = "Failed to retrieve latest version from ConfigServer";
-		} else {
-			$newversion = "Failed to retrieve latest version from ConfigServer: $newversion";
-		}
-	}
-	elsif (-e "/var/lib/configserver/".$product.".txt") {
-		open (my $VERSION, "<", "/var/lib/configserver/".$product.".txt");
-		flock ($VERSION, LOCK_SH);
-		$newversion = <$VERSION>;
-		close ($VERSION);
-		chomp $newversion;
-		if ($newversion eq "") {
-			$newversion = "Failed to retrieve latest version from ConfigServer";
-		} else {
-			if ($newversion =~ /^[\d\.]*$/) {
-				if ($newversion > $current) {$upgrade = 1} else {$newversion = ""}
-			} else {$newversion = ""}
-		}
-	}
-	elsif (-e "/var/lib/configserver/error") {
-		open (my $VERSION, "<", "/var/lib/configserver/error");
-		flock ($VERSION, LOCK_SH);
-		$newversion = <$VERSION>;
-		close ($VERSION);
-		chomp $newversion;
-		if ($newversion eq "") {
-			$newversion = "Failed to retrieve latest version from ConfigServer";
-		} else {
-			$newversion = "Failed to retrieve latest version from ConfigServer: $newversion";
-		}
-	} else {
-		$newversion = "Failed to retrieve latest version from ConfigServer";
-	}
-	return ($upgrade, $newversion);
-}
-# end csgetversion
-###############################################################################
-# start manualversion
-sub manualversion {
-	my $current = shift;
-	my $upgrade = 0;
-	my $url = "https://$config{DOWNLOADSERVER}/csf/version.txt";
-	if ($config{URLGET} == 1) {$url = "http://$config{DOWNLOADSERVER}/csf/version.txt";}
-	my ($status, $newversion) = $urlget->urlget($url);
-	if (!$status and $newversion ne "" and $newversion =~ /^[\d\.]*$/ and $newversion > $current) {$upgrade = 1} else {$newversion = ""}
-	return ($upgrade, $newversion);
-}
-# end manualversion
 ###############################################################################
 
 1;
